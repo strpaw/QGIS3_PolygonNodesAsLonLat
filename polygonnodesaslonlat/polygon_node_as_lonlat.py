@@ -23,7 +23,8 @@
 """
 from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction
+from PyQt5.QtWidgets import QAction, QMessageBox, QWidget
+from qgis.core import *
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -63,6 +64,7 @@ class PolygonNodesAsLonLat:
 
         # Create the dialog (after translation) and keep reference
         self.dlg = PolygonNodesAsLonLatDialog()
+        self.dlg.pushButtonShowNodeCoord.clicked.connect(self.show_node_coordinates)
 
         # Declare instance attributes
         self.actions = []
@@ -180,6 +182,29 @@ class PolygonNodesAsLonLat:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
+
+    def show_node_coordinates(self):
+        """ Creates point layer for nodes for chosen polygon and shows label with coordinates. """
+
+        canvas = self.iface.mapCanvas()
+        clayer = canvas.currentLayer()
+        if clayer is None:
+            QMessageBox.critical(QWidget(), "Message", "No active layer.")
+        else:
+            # Geometry must be Polygon
+            if clayer.wkbType() == QgsWkbTypes.Polygon:
+                if clayer.selectedFeatureCount() != 1:
+                    QMessageBox.critical(QWidget(), "Message", "Select one polygon.")
+            elif clayer.wkbType() == QgsWkbTypes.MultiPolygon:
+                if clayer.selectedFeatureCount() != 1:
+                    QMessageBox.critical(QWidget(), "Message", "{} polygons selected.\n"
+                                                               "Select one polygon.".format(clayer.selectedFeatureCount()))
+
+                else:
+                    selected_polygon = clayer.selectedFeatures()[0]
+                    geom_wkt = selected_polygon.geometry().asWkt()
+                    self.dlg.plainTextEdit.setPlainText(geom_wkt)
+
 
 
     def run(self):
