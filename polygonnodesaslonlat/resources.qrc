@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/polygon_node_as_lonlat" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
