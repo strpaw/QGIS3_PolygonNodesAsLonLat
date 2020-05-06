@@ -21,7 +21,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QVariant
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction, QMessageBox, QWidget
 from qgis.core import *
@@ -31,6 +31,7 @@ from .resources import *
 # Import the code for the dialog
 from .polygon_node_as_lonlat_dialog import PolygonNodesAsLonLatDialog
 import os.path
+import datetime
 
 
 class PolygonNodesAsLonLat:
@@ -44,6 +45,7 @@ class PolygonNodesAsLonLat:
             application at run time.
         :type iface: QgsInterface
         """
+        self.lyr_name = None
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
@@ -183,14 +185,53 @@ class PolygonNodesAsLonLat:
         # remove the toolbar
         del self.toolbar
 
+    @staticmethod
+    def gen_name():
+        """ Generates name for memory layer base on timestamp in format:
+        YYYYY_MMM_DDD_HHMM.ssssss, e.g.: 2020_Apr_Wed_1622.000001. """
+        timestamp = datetime.datetime.now()
+        return timestamp.strftime('%Y_%b_%a_%H%M.%f')
+
+    @staticmethod
+    def create_memory_lyr(lyr_name):
+        """ Create temporary 'memory' layer to store results of calculations.
+        :param lyr_name: string, layer name
+        :return mem_lyr: created memory layer
+        """
+        mem_lyr = QgsVectorLayer('Point?crs=epsg:4326', lyr_name, 'memory')
+        prov = mem_lyr.dataProvider()
+        mem_lyr.startEditing()
+        prov.addAttributes([QgsField("COORD_DMS", QVariant.String)])
+        mem_lyr.commitChanges()
+        QgsProject.instance().addMapLayer(mem_lyr)
+        return mem_lyr
+
+    def add_node(self, lyr, point, attributes):
+        lyr = self.iface.activeLayer()
+        lyr.startEditing()
+        prov = lyr.dataProvider()
+        feat = QgsFeature()
+        feat.setGeometry(point)
+        # feat.setGeometry(QgsGeometry.fromPointXY(point))
+        feat.setAttributes(attributes)
+        prov.addFeatures([feat])
+        lyr.commitChanges()
+
     def show_node_coordinates(self):
         """ Creates point layer for nodes for chosen polygon and shows label with coordinates. """
-
         canvas = self.iface.mapCanvas()
         clayer = canvas.currentLayer()
         if clayer is None:
             QMessageBox.critical(QWidget(), "Message", "No active layer.")
         else:
+
+            if self.lyr_name:
+                lyr = QgsProject.instance().mapLayersByName(self.lyr_name)[0]
+                self.iface.setActiveLayer(lyr)
+            else:
+                self.lyr_name = self.gen_name()
+                lyr = self.create_memory_lyr(self.lyr_name)
+
             # Geometry must be Polygon
             if clayer.wkbType() == QgsWkbTypes.Polygon:
                 if clayer.selectedFeatureCount() != 1:
@@ -202,10 +243,12 @@ class PolygonNodesAsLonLat:
 
                 else:
                     selected_polygon = clayer.selectedFeatures()[0]
+                    geom = selected_polygon.geometry()
+                    for vertex in geom.vertices():
+                        coord = '{} {}'.format(vertex.x(), vertex.y())
+                        self.add_node(lyr, vertex, [coord])
                     geom_wkt = selected_polygon.geometry().asWkt()
-                    self.dlg.plainTextEdit.setPlainText(geom_wkt)
-
-
+                    self.dlg.plainTextEdit.appendPlainText(geom_wkt)
 
     def run(self):
         """Run method that performs all the real work"""
