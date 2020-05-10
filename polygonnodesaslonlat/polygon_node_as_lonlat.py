@@ -32,6 +32,8 @@ from .resources import *
 from .polygon_node_as_lonlat_dialog import PolygonNodesAsLonLatDialog
 import os.path
 import datetime
+from .aviation_gis_toolkit.angle import *
+
 
 
 class PolygonNodesAsLonLat:
@@ -208,14 +210,11 @@ class PolygonNodesAsLonLat:
 
     def add_node(self, lyr, point, attributes):
         lyr = self.iface.activeLayer()
-        lyr.startEditing()
         prov = lyr.dataProvider()
         feat = QgsFeature()
         feat.setGeometry(point)
-        # feat.setGeometry(QgsGeometry.fromPointXY(point))
         feat.setAttributes(attributes)
         prov.addFeatures([feat])
-        lyr.commitChanges()
 
     def show_node_coordinates(self):
         """ Creates point layer for nodes for chosen polygon and shows label with coordinates. """
@@ -224,7 +223,7 @@ class PolygonNodesAsLonLat:
         if clayer is None:
             QMessageBox.critical(QWidget(), "Message", "No active layer.")
         else:
-
+            angle_tool = Angle()
             if self.lyr_name:
                 lyr = QgsProject.instance().mapLayersByName(self.lyr_name)[0]
                 self.iface.setActiveLayer(lyr)
@@ -242,11 +241,16 @@ class PolygonNodesAsLonLat:
                                                                "Select one polygon.".format(clayer.selectedFeatureCount()))
 
                 else:
+                    lyr.startEditing()
                     selected_polygon = clayer.selectedFeatures()[0]
                     geom = selected_polygon.geometry()
                     for vertex in geom.vertices():
-                        coord = '{} {}'.format(vertex.x(), vertex.y())
+                        # Convert DD to DMS format
+                        lon_dms = angle_tool.dd_to_dms_string(vertex.x(), AT_LON, ang_format=AF_DMSH_SEP_SYMBOLS)
+                        lat_dms = angle_tool.dd_to_dms_string(vertex.y(), AT_LAT, ang_format=AF_DMSH_SEP_SYMBOLS)
+                        coord = '{} {}'.format(lon_dms, lat_dms)
                         self.add_node(lyr, vertex, [coord])
+                    lyr.commitChanges()
                     geom_wkt = selected_polygon.geometry().asWkt()
                     self.dlg.plainTextEdit.appendPlainText(geom_wkt)
 
