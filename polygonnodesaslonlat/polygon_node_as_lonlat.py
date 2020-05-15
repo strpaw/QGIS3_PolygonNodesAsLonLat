@@ -206,6 +206,16 @@ class PolygonNodesAsLonLat:
         prov.addAttributes([QgsField("COORD_DMS", QVariant.String)])
         mem_lyr.commitChanges()
         QgsProject.instance().addMapLayer(mem_lyr)
+
+        mem_lyr.setLabelsEnabled(True)
+        mem_lyr_settings = QgsPalLayerSettings()
+        mem_lyr_settings.isExpression = True
+        mem_lyr_settings.fieldName = "COORD_DMS"
+        lyr_set = QgsVectorLayerSimpleLabeling(mem_lyr_settings)
+        mem_lyr.setLabelsEnabled(True)
+        mem_lyr.setLabeling(lyr_set)
+        mem_lyr.triggerRepaint()
+
         return mem_lyr
 
     def add_node(self, lyr, point, attributes):
