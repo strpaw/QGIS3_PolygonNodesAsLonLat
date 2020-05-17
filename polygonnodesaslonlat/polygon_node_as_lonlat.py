@@ -236,6 +236,7 @@ class PolygonNodesAsLonLat:
             angle_tool = Angle()
             if self.lyr_name:
                 lyr = QgsProject.instance().mapLayersByName(self.lyr_name)[0]
+
                 self.iface.setActiveLayer(lyr)
             else:
                 self.lyr_name = self.gen_name()
@@ -252,6 +253,10 @@ class PolygonNodesAsLonLat:
 
                 else:
                     lyr.startEditing()
+                    # Remove previous node coordinates
+                    prov = lyr.dataProvider()
+                    prov.truncate()
+
                     selected_polygon = clayer.selectedFeatures()[0]
                     geom = selected_polygon.geometry()
                     for vertex in geom.vertices():
