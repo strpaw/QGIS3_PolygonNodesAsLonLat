@@ -263,6 +263,8 @@ class PolygonNodesAsLonLat:
                     lyr.commitChanges()
                     geom_wkt = selected_polygon.geometry().asWkt()
                     self.dlg.plainTextEdit.appendPlainText(geom_wkt)
+        # Set active layer previously selected polygon layer
+        self.iface.setActiveLayer(clayer)
 
     def run(self):
         """Run method that performs all the real work"""
